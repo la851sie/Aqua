@@ -56,16 +56,21 @@ public class Broker {
             if (msg.getPayload() instanceof PoisonPill){
                 break;
             }
-            BrokerTask task = new BrokerTask();
-            executor.execute(() -> task.brokerTask(msg));
+            BrokerTask task = new BrokerTask(msg);
+            executor.execute(task);
         }
         executor.shutdown();
     }
 
-    public class BrokerTask {
-        // inner class - Verarbeitung und Beantwortung von Nachrichten
+    public class BrokerTask implements Runnable{
 
-        public void brokerTask(Message msg) {
+        private Message msg;
+
+        public BrokerTask(Message msg){
+            this.msg = msg;
+        }
+
+        public void run() {
             if (msg.getPayload() instanceof RegisterRequest){
                 synchronized (clientList){
                     register(msg);
