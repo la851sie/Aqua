@@ -52,13 +52,14 @@ public class Broker {
     }
 
     public void broker() {
-        while(true){
+        executor.execute(() -> {
+            JOptionPane.showMessageDialog(null, "Press OK button to stop server");
+            stopRequested = true;
+        });
+        while (!stopRequested) {
             Message msg = endpoint.blockingReceive();
-            if (msg.getPayload() instanceof PoisonPill){
-                break;
-            }
+            BrokerTask brokerTask = new BrokerTask(msg);
             BrokerTask task = new BrokerTask(msg);
-            executor.execute(task);
         }
         executor.shutdown();
     }
