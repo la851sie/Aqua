@@ -51,20 +51,13 @@ public class Broker {
     }
 
     public void broker() {
-        executor.execute(() -> {
-            JOptionPane.showMessageDialog(null, "Press OK button to stop server");
-            stopRequested = true;
-        });
-        while(!stopRequested){
+        while(true){
             Message msg = endpoint.blockingReceive();
+            if (msg.getPayload() instanceof PoisonPill){
+                break;
+            }
             BrokerTask task = new BrokerTask();
-            /*
-            TODO: Fragen:
-            1. executor benötigt Runnable Object laut PDF -> Broker Task ist nicht vom Typ runnable
-            2. ich kenne lambdas num im zusammenhang von interfaces - kurze erklärung (einfach start einen anonymen Threads?)
-             */
             executor.execute(() -> task.brokerTask(msg));
-
         }
         executor.shutdown();
     }
