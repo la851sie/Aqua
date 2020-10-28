@@ -52,28 +52,27 @@ public class Broker {
     }
 
     public void broker() {
-        executor.execute(() -> {
-            JOptionPane.showMessageDialog(null, "Press OK button to stop server");
-            stopRequested = true;
-        });
-        while(!stopRequested){
+        while(true){
             Message msg = endpoint.blockingReceive();
-            BrokerTask task = new BrokerTask();
-            executor.execute(() -> task.brokerTask(msg));
-            // -> lambda -> hier wird on the fly ein Runnable gebaut
+            if (msg.getPayload() instanceof PoisonPill){
+                break;
+            }
+            BrokerTask task = new BrokerTask(msg);
+            executor.execute(task);
         }
         executor.shutdown();
     }
 
 
-    // payload weitherhin außerhalb bearbeiten
-    // -> Broker Task = Runnable
+    public class BrokerTask implements Runnable{
 
-    // Bei Zeit: Ohen innere Klasse mal probieren
-    public class BrokerTask{
-        // inner class - Verarbeitung und Beantwortung von Nachrichten
+        private Message msg;
 
-        public void brokerTask(Message msg) {
+        public BrokerTask(Message msg){
+            this.msg = msg;
+        }
+
+        public void run() {
             if (msg.getPayload() instanceof RegisterRequest){
                 synchronized (clientList){
                     register(msg);
@@ -87,7 +86,6 @@ public class Broker {
             }
 
             if (msg.getPayload() instanceof HandoffRequest){
-                //TODO: Fragen -> richtiger Lock? -> in handoff wird nichts geschrieben
                 lock.readLock().lock();
                 handoffFish(msg);
                 lock.readLock().unlock();
