@@ -32,6 +32,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class Broker {
     private Endpoint endpoint;
     // TODO: ClientList wird ebenfalls von verschiedenen Threads genutzt -> Änderungen mpssen aber nicht sofort sichtbar sein, daher ist Volatile nicht notwendig, richtig? -> inkonsistenz wird mit synchronized gewährleistet
+    // -> voaltile wird für !primitive! Datentypen (werden im Chache gehalten -> optimierung) verwendet.
     private ClientCollection clientList;
     private int numThreads = 5;
     private ExecutorService executor;
@@ -58,18 +59,18 @@ public class Broker {
         while(!stopRequested){
             Message msg = endpoint.blockingReceive();
             BrokerTask task = new BrokerTask();
-            /*
-            TODO: Fragen:
-            1. executor benötigt Runnable Object laut PDF -> Broker Task ist nicht vom Typ runnable
-            2. ich kenne lambdas num im zusammenhang von interfaces - kurze erklärung (einfach start einen anonymen Threads?)
-             */
             executor.execute(() -> task.brokerTask(msg));
-
+            // -> lambda -> hier wird on the fly ein Runnable gebaut
         }
         executor.shutdown();
     }
 
-    public class BrokerTask {
+
+    // payload weitherhin außerhalb bearbeiten
+    // -> Broker Task = Runnable
+
+    // Bei Zeit: Ohen innere Klasse mal probieren
+    public class BrokerTask{
         // inner class - Verarbeitung und Beantwortung von Nachrichten
 
         public void brokerTask(Message msg) {
