@@ -2,6 +2,7 @@ package aqua.blatt1.broker;
 
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
+import aqua.blatt1.common.Properties;
 import aqua.blatt1.common.msgtypes.DeregisterRequest;
 import aqua.blatt1.common.msgtypes.HandoffRequest;
 import aqua.blatt1.common.msgtypes.RegisterRequest;
@@ -9,7 +10,13 @@ import aqua.blatt1.common.msgtypes.RegisterResponse;
 import messaging.Endpoint;
 import messaging.Message;
 
+import javax.swing.*;
 import java.net.InetSocketAddress;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /*
  * LASI:
@@ -24,33 +31,66 @@ import java.net.InetSocketAddress;
 
 public class Broker {
     private Endpoint endpoint;
+    // TODO: ClientList wird ebenfalls von verschiedenen Threads genutzt -> Änderungen mpssen aber nicht sofort sichtbar sein, daher ist Volatile nicht notwendig, richtig? -> inkonsistenz wird mit synchronized gewährleistet
     private ClientCollection clientList;
-
+    private int numThreads = 5;
+    private ExecutorService executor;
+    private ReadWriteLock lock;
+    private volatile boolean stopRequested;
 
     public static void main(String[] args) {
         Broker broker = new Broker();
-        broker.runBroker();
+        broker.broker();
     }
 
     public Broker() {
         this.endpoint = new Endpoint(4711);
         this.clientList = new ClientCollection();
+        this.executor = Executors.newFixedThreadPool(numThreads);
+        this.lock = new ReentrantReadWriteLock();
     }
 
-
-    // Aufgabe 1
-    public void runBroker() {
-        while (true) {
+    public void broker() {
+        executor.execute(() -> {
+            JOptionPane.showMessageDialog(null, "Press OK button to stop server");
+            stopRequested = true;
+        });
+        while(!stopRequested){
             Message msg = endpoint.blockingReceive();
+            BrokerTask task = new BrokerTask();
+            /*
+            TODO: Fragen:
+            1. executor benötigt Runnable Object laut PDF -> Broker Task ist nicht vom Typ runnable
+            2. ich kenne lambdas num im zusammenhang von interfaces - kurze erklärung (einfach start einen anonymen Threads?)
+             */
+            executor.execute(() -> task.brokerTask(msg));
 
-            if (msg.getPayload() instanceof RegisterRequest)
-                register(msg);
+        }
+        executor.shutdown();
+    }
 
-            if (msg.getPayload() instanceof DeregisterRequest)
-                deregister(msg);
+    public class BrokerTask {
+        // inner class - Verarbeitung und Beantwortung von Nachrichten
 
-            if (msg.getPayload() instanceof HandoffRequest)
+        public void brokerTask(Message msg) {
+            if (msg.getPayload() instanceof RegisterRequest){
+                synchronized (clientList){
+                    register(msg);
+                }
+            }
+
+            if (msg.getPayload() instanceof DeregisterRequest){
+                synchronized (clientList){
+                    deregister(msg);
+                }
+            }
+
+            if (msg.getPayload() instanceof HandoffRequest){
+                //TODO: Fragen -> richtiger Lock? -> in handoff wird nichts geschrieben
+                lock.readLock().lock();
                 handoffFish(msg);
+                lock.readLock().unlock();
+            }
 
         }
     }
