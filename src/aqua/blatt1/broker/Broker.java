@@ -31,7 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class Broker {
     private Endpoint endpoint;
-    // TODO: ClientList wird ebenfalls von verschiedenen Threads genutzt -> Änderungen mpssen aber nicht sofort sichtbar sein, daher ist Volatile nicht notwendig, richtig? -> inkonsistenz wird mit synchronized gewährleistet
+   // Wann volatile ? -> bei primitiven Datentypen -> optimierungsproblem des Compilers vermeiden -> andere datentypen schützt man mit synchronisations, locks etc.
     private ClientCollection clientList;
     private int numThreads = 5;
     private ExecutorService executor;
@@ -58,6 +58,12 @@ public class Broker {
             }
             BrokerTask task = new BrokerTask(msg);
             executor.execute(task);
+
+            // executer.execute(() -> task.brokerTask(msg)); -> War teil meiner ersten Lösung
+            // was passiert hier?
+            // Lambda Expression -> executer erwartet Runnable (=Interface) -> methode "task.brokerTask(msg)" wird in run-methode aus Interface eingebaut.
+            // Warum wird der Übergabgeparameter nicht in der erstn () deklariert?
+            // -> nur für unbekannte variablen, bekannte Variablen (sieh msg) kann in der Methode übergeben werden, da auf bereits zugegriffen werden kann - logisch....
         }
         executor.shutdown();
     }
@@ -84,7 +90,8 @@ public class Broker {
             }
 
             if (msg.getPayload() instanceof HandoffRequest){
-                //TODO: Fragen -> richtiger Lock? -> in handoff wird nichts geschrieben
+                // Read Lock, da im Handoff nur gelesen wird -> so wird sichergestellt, dass mehrere HandoffRequests gleichzeitig bearbeitet werden können.
+                // Register/Deregister schreiben auch, daher wurde das mit "synchronized" realisiert
                 lock.readLock().lock();
                 handoffFish(msg);
                 lock.readLock().unlock();
