@@ -1,16 +1,13 @@
 package aqua.blatt1.client;
 
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Observable;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
+import aqua.blatt1.common.msgtypes.Token;
 
 public class TankModel extends Observable implements Iterable<FishModel> {
 
@@ -22,8 +19,12 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	protected final Set<FishModel> fishies;
 	protected int fishCounter = 0;
 	protected final ClientCommunicator.ClientForwarder forwarder;
+
+
 	public InetSocketAddress leftNeighbor;
 	public InetSocketAddress rightNeighbor;
+	protected boolean boolToken;
+	Timer timer = new Timer();
 
 	public TankModel(ClientCommunicator.ClientForwarder forwarder) {
 		this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
@@ -71,11 +72,10 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 			fish.update();
 
 			if (fish.hitsEdge())
-				if (leftNeighbor == null){
-					// Nachbarn noch nicht gesetzt durch Endpoint -> Lösung: Fisch ändert Richtung
-					fish.reverse();
-				}else{
+				if (hasToken()){
 					forwarder.handOff(fish,leftNeighbor,rightNeighbor);
+				}else{
+					fish.reverse();
 				}
 
 
@@ -108,11 +108,31 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 		forwarder.deregister(id);
 	}
 
-
 	public synchronized void updateNeighbors(InetSocketAddress leftNeighbor, InetSocketAddress rightNeighbor) {
 		this.leftNeighbor = leftNeighbor;
 		this.rightNeighbor = rightNeighbor;
 		System.out.println("Update Neighbors for " + id);
 	}
+
+	public void receiveToken(Token token) {
+		boolToken = true;
+		timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				boolToken = false;
+				forwarder.sendToken(leftNeighbor, token);
+			}
+		}, 2000);
+	}
+
+	public boolean hasToken(){
+		if (boolToken) {
+			System.out.println("I am  " + id + " and have the token");
+			return true;
+		} else {
+			return false;
+		}
+	}
+
 
 }

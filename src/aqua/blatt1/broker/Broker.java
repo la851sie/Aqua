@@ -104,6 +104,9 @@ public class Broker {
         System.out.println("Added id:"+ id +" to the list");
 
         RegisterResponse response = new RegisterResponse(id);
+        if(clientList.size() == 1){
+            endpoint.send(sender,new Token());
+        }
         endpoint.send(sender, response);
 
         // Neuer Tank, neuer Linker nachbar, neuer rechter Nachbar müssen update zu Ihren Nachbarn bekommen
@@ -115,7 +118,6 @@ public class Broker {
             updateNeighborOf(rightNeighbor);
             updateNeighborOf(leftNeighbor);
         }
-
     }
 
     public void updateNeighborOf(InetSocketAddress tank){
