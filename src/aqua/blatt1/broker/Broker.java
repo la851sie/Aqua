@@ -3,10 +3,7 @@ package aqua.blatt1.broker;
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
 import aqua.blatt1.common.Properties;
-import aqua.blatt1.common.msgtypes.DeregisterRequest;
-import aqua.blatt1.common.msgtypes.HandoffRequest;
-import aqua.blatt1.common.msgtypes.RegisterRequest;
-import aqua.blatt1.common.msgtypes.RegisterResponse;
+import aqua.blatt1.common.msgtypes.*;
 import messaging.Endpoint;
 import messaging.Message;
 
@@ -108,13 +105,42 @@ public class Broker {
 
         RegisterResponse response = new RegisterResponse(id);
         endpoint.send(sender, response);
+
+        // Neuer Tank, neuer Linker nachbar, neuer rechter Nachbar müssen update zu Ihren Nachbarn bekommen
+        InetSocketAddress rightNeighbor = (InetSocketAddress) clientList.getRightNeighorOf(clientList.indexOf(sender));
+        InetSocketAddress leftNeighbor = (InetSocketAddress) clientList.getLeftNeighorOf(clientList.indexOf(sender));
+
+        updateNeighborOf(sender);
+        if (clientList.size() > 1){
+            updateNeighborOf(rightNeighbor);
+            updateNeighborOf(leftNeighbor);
+        }
+
+    }
+
+    public void updateNeighborOf(InetSocketAddress tank){
+        InetSocketAddress leftNeighbor = (InetSocketAddress) clientList.getLeftNeighorOf(clientList.indexOf(tank));
+        InetSocketAddress rightNeighbor = (InetSocketAddress) clientList.getRightNeighorOf(clientList.indexOf(tank));
+        endpoint.send(tank, new NeighborUpdate(leftNeighbor,rightNeighbor));
     }
 
     public void deregister(Message msg) {
         InetSocketAddress sender = msg.getSender();
         int i = clientList.indexOf(sender);
+
+        // linker und rechter nachbar herrausfinden
+        InetSocketAddress rightNeighbor = (InetSocketAddress) clientList.getRightNeighorOf(clientList.indexOf(sender));
+        InetSocketAddress leftNeighbor = (InetSocketAddress) clientList.getLeftNeighorOf(clientList.indexOf(sender));
+
+        // Sender entfernen
         clientList.remove(i);
         System.out.println("Removed id: tank"+ i +" from the list");
+
+        if(clientList.size() != 0){
+            // Ehemalige Nachbarn updaten
+            updateNeighborOf(rightNeighbor);
+            updateNeighborOf(leftNeighbor);
+        }
     }
 
     public void handoffFish(Message msg) {
