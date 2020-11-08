@@ -27,6 +27,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 
 public class Broker {
+
+    //TODO: Token kann verloren gehen....
     private Endpoint endpoint;
    // Wann volatile ? -> bei primitiven Datentypen -> optimierungsproblem des Compilers vermeiden -> andere datentypen schützt man mit synchronisations, locks etc.
     private ClientCollection clientList;
