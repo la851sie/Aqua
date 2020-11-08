@@ -58,8 +58,8 @@ public class Broker {
         });
         while (!stopRequested) {
             Message msg = endpoint.blockingReceive();
-            BrokerTask brokerTask = new BrokerTask(msg);
             BrokerTask task = new BrokerTask(msg);
+            executor.execute(task);
         }
         executor.shutdown();
     }
