@@ -35,6 +35,16 @@ public class ClientCommunicator {
 			endpoint.send(receiver, token);
 		}
 
+		public void sendSnapshotMarker (InetSocketAddress receiver, SnapshotMarker marker){
+			System.out.println("Sende Snapshotmarker");
+			endpoint.send(receiver,marker);
+		}
+
+		public void sendSnapshotCollector (InetSocketAddress receiver, SnapshotCollector marker){
+			System.out.println("Sende Snapshotcollector");
+			endpoint.send(receiver,marker);
+		}
+
 		public void handOff(FishModel fish, InetSocketAddress left, InetSocketAddress right) {
 			InetSocketAddress receiverAdress;
 
@@ -71,6 +81,16 @@ public class ClientCommunicator {
 
 				if(msg.getPayload() instanceof Token){
 					tankModel.receiveToken((Token) msg.getPayload());
+				}
+
+				if(msg.getPayload() instanceof SnapshotMarker){
+					System.out.println("Erhalte Snapshotmarker");
+					tankModel.receiveSnapshotMarker(msg.getSender(),(SnapshotMarker) msg.getPayload());
+				}
+
+				if(msg.getPayload() instanceof SnapshotCollector){
+					System.out.println("Erhalte SnapshotCollector");
+					tankModel.receiveSnapshotCollector((SnapshotCollector) msg.getPayload());
 				}
 			}
 			System.out.println("Receiver stopped.");
