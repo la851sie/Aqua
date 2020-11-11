@@ -131,6 +131,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 
 	public void receiveToken(Token token) {
 		boolToken = true;
+		// Achtung -> schedule erzeugt ein eigenen Thread
 		timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
@@ -152,6 +153,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	public void receiveSnapshotCollector(SnapshotCollector marker){
 		if(!initiator){
 			hasCollector = true;
+			// ToDo: Ist diese Lösung elegant? -> nein eigentlich nicht, könnte auch einfach ein normaler thread implementiert werden - executer service macht an der Stelle keinen Sinn
 			executor.execute(() -> {
 				while (hasCollector) {
 					if (snapshotComplete) {
