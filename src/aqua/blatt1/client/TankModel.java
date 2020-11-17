@@ -10,9 +10,13 @@ import java.util.concurrent.TimeUnit;
 import aqua.blatt1.common.Direction;
 import aqua.blatt1.common.FishModel;
 import aqua.blatt1.common.RecorderState;
+import aqua.blatt1.common.ReferenceFish;
+import aqua.blatt1.common.msgtypes.LocationRequest;
 import aqua.blatt1.common.msgtypes.SnapshotCollector;
 import aqua.blatt1.common.msgtypes.SnapshotMarker;
 import aqua.blatt1.common.msgtypes.Token;
+
+import javax.xml.stream.Location;
 
 public class TankModel extends Observable implements Iterable<FishModel> {
 
@@ -38,6 +42,8 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	public boolean hasCollector = false;
 	ExecutorService executor = Executors.newFixedThreadPool(1);
 
+	HashMap<String, ReferenceFish> fishReference = new HashMap<>();
+
 	public TankModel(ClientCommunicator.ClientForwarder forwarder) {
 		this.fishies = Collections.newSetFromMap(new ConcurrentHashMap<FishModel, Boolean>());
 		this.forwarder = forwarder;
@@ -57,6 +63,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 					rand.nextBoolean() ? Direction.LEFT : Direction.RIGHT);
 
 			fishies.add(fish);
+			fishReference.put(fish.getId(), ReferenceFish.HERE);
 		}
 	}
 
@@ -67,6 +74,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 
 		fish.setToStart();
 		fishies.add(fish);
+		updateFishReference(fish,true);
 	}
 
 	public String getId() {
@@ -89,6 +97,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 
 			if (fish.hitsEdge())
 				if (hasToken()){
+					updateFishReference(fish,false);
 					forwarder.handOff(fish,leftNeighbor,rightNeighbor);
 				}else{
 					fish.reverse();
@@ -245,6 +254,48 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 				System.out.println("Snapshot complete");
 				snapshotComplete = true;
 			}
+		}
+	}
+
+	public void locateFishGlobally(String fishId){
+		ReferenceFish referenceFish = fishReference.get(fishId);
+		// Befindet sich der Fisch im Aquarium
+		if (referenceFish == ReferenceFish.HERE) {
+			locateFishLocally(fishId);
+		// Fisch ist  nach links/rechts aus dem Aquarium geschwommen
+		} else {
+			InetSocketAddress receiver;
+			if(referenceFish == ReferenceFish.LEFT){
+				receiver = leftNeighbor;
+			}else{
+				receiver = rightNeighbor;
+			}
+			forwarder.sendLocationRequest(receiver, new LocationRequest(fishId));
+		}
+	}
+
+	public void locateFishLocally(String fishId){
+		for (FishModel fish : fishies){
+			if(fish.getId().equals(fishId)){
+				fish.toggle();
+				break;
+			}
+		}
+	}
+
+	public void updateFishReference(FishModel fish, boolean receivedFish){
+		Direction direction = fish.getDirection();
+
+		if (fishReference.containsKey(fish.getId())){
+			// Fisch erhalten
+			if (receivedFish){
+				fishReference.replace(fish.getId(),ReferenceFish.HERE);
+			// Fisch gesendet
+			}else{
+				fishReference.replace(fish.getId(),ReferenceFish.valueOf(direction.toString()));
+			}
+		}else{
+			fishReference.put(fish.getId(), ReferenceFish.HERE);
 		}
 	}
 }

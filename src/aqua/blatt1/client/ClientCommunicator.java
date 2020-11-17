@@ -56,6 +56,10 @@ public class ClientCommunicator {
 			System.out.print("Ausgabe "+receiverAdress.toString());
 			endpoint.send(receiverAdress,new HandoffRequest(fish));
 		}
+
+		public void sendLocationRequest(InetSocketAddress receiver, LocationRequest locationRequest){
+			endpoint.send(receiver,locationRequest);
+		}
 	}
 
 	public class ClientReceiver extends Thread {
@@ -91,6 +95,10 @@ public class ClientCommunicator {
 				if(msg.getPayload() instanceof SnapshotCollector){
 					System.out.println("Erhalte SnapshotCollector");
 					tankModel.receiveSnapshotCollector((SnapshotCollector) msg.getPayload());
+				}
+
+				if(msg.getPayload() instanceof LocationRequest){
+					tankModel.locateFishGlobally(((LocationRequest) msg.getPayload()).getFishId());
 				}
 			}
 			System.out.println("Receiver stopped.");
