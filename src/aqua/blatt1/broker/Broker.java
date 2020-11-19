@@ -67,28 +67,28 @@ public class Broker {
         executor.shutdown();
     }
 
-    public class BrokerTask implements Runnable{
+    public class BrokerTask implements Runnable {
 
         private Message msg;
 
-        public BrokerTask(Message msg){
+        public BrokerTask(Message msg) {
             this.msg = msg;
         }
 
         public void run() {
-            if (msg.getPayload() instanceof RegisterRequest){
-                synchronized (clientList){
+            if (msg.getPayload() instanceof RegisterRequest) {
+                synchronized (clientList) {
                     register(msg);
                 }
             }
 
-            if (msg.getPayload() instanceof DeregisterRequest){
-                synchronized (clientList){
+            if (msg.getPayload() instanceof DeregisterRequest) {
+                synchronized (clientList) {
                     deregister(msg);
                 }
             }
 
-            if (msg.getPayload() instanceof HandoffRequest){
+            if (msg.getPayload() instanceof HandoffRequest) {
                 // Read Lock, da im Handoff nur gelesen wird -> so wird sichergestellt, dass mehrere HandoffRequests gleichzeitig bearbeitet werden können.
                 // Register/Deregister schreiben auch, daher wurde das mit "synchronized" realisiert
                 lock.readLock().lock();
@@ -96,6 +96,13 @@ public class Broker {
                 lock.readLock().unlock();
             }
 
+            if (msg.getPayload() instanceof NameResolutionRequest) {
+                String tankId = ((NameResolutionRequest) msg.getPayload()).getSearchedTankId();
+                String requestId = ((NameResolutionRequest) msg.getPayload()).getRequestId();
+                InetSocketAddress tankAddress = (InetSocketAddress) clientList.getClient(clientList.indexOf(tankId));
+                endpoint.send(msg.getSender(), new NameResolutionResponse(tankAddress, requestId, msg.getSender()));
+                // TODO: Warum brauche ich hier noch die Senderadresse?
+            }
         }
     }
 
