@@ -38,6 +38,7 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 	public boolean showDialog = false;
 	public boolean hasCollector = false;
 	ExecutorService executor = Executors.newFixedThreadPool(1);
+	boolean firstRegisterResponse = true;
 
 	HashMap<String, InetSocketAddress> homeAgent = new HashMap<>();
 
@@ -46,9 +47,21 @@ public class TankModel extends Observable implements Iterable<FishModel> {
 		this.forwarder = forwarder;
 	}
 
-	synchronized void onRegistration(String id) {
-		this.id = id;
-		newFish(WIDTH - FishModel.getXSize(), rand.nextInt(HEIGHT - FishModel.getYSize()));
+	synchronized void onRegistration(String id, int leaseDuration) {
+		if (firstRegisterResponse){
+			this.id = id;
+			newFish(WIDTH - FishModel.getXSize(), rand.nextInt(HEIGHT - FishModel.getYSize()));
+		}
+
+		timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				System.out.println("Ich registriere mich erneut");
+				forwarder.register();
+			}
+			// nach der hälfte der Registrierungszeit wird eine neue Lease beantragt.
+		},leaseDuration/2);
+		firstRegisterResponse = false;
 	}
 
 	public synchronized void newFish(int x, int y) {

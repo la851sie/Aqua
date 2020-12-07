@@ -82,8 +82,10 @@ public class ClientCommunicator {
 			while (!isInterrupted()) {
 				Message msg = endpoint.blockingReceive();
 
-				if (msg.getPayload() instanceof RegisterResponse)
-					tankModel.onRegistration(((RegisterResponse) msg.getPayload()).getId());
+				if (msg.getPayload() instanceof RegisterResponse){
+					System.out.println("Erhalte RegisterResponse");
+					tankModel.onRegistration(((RegisterResponse) msg.getPayload()).getId(), ((RegisterResponse) msg.getPayload()).getLeaseDuration());
+				}
 
 				if (msg.getPayload() instanceof HandoffRequest)
 					tankModel.receiveFish(((HandoffRequest) msg.getPayload()).getFish());

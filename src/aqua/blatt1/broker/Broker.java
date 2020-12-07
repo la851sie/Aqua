@@ -9,6 +9,8 @@ import messaging.Message;
 
 import javax.swing.*;
 import java.net.InetSocketAddress;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,7 +29,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 
 public class Broker {
-
     //TODO: Token kann verloren gehen....
     private Endpoint endpoint;
    // Wann volatile ? -> bei primitiven Datentypen -> optimierungsproblem des Compilers vermeiden -> andere datentypen schützt man mit synchronisations, locks etc.
@@ -36,6 +37,8 @@ public class Broker {
     private ExecutorService executor;
     private ReadWriteLock lock;
     private volatile boolean stopRequested;
+    java.util.Timer timer = new Timer();
+    int leaseDuration = 10000;
 
     public static void main(String[] args) {
         Broker broker = new Broker();
@@ -57,6 +60,25 @@ public class Broker {
             }
             BrokerTask task = new BrokerTask(msg);
             executor.execute(task);
+
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    System.out.println("Checking old leases");
+
+                    for (int i = 0; i < clientList.size(); i++) {
+                        long registerTime = clientList.getRegistrationTime(i);
+                        long currentTime = System.currentTimeMillis();
+                        if (currentTime - registerTime > leaseDuration){
+                            // Frage: hier muss ein synchronized rein oder?
+                            synchronized (clientList) {
+                                deregister(new Message(null, (InetSocketAddress) clientList.getClient(i)));
+                            }
+                        }
+                    }
+                }
+                // nach der hälfte der Registrierungszeit wird eine neue Lease beantragt.
+            },0,5000);
 
             // executer.execute(() -> task.brokerTask(msg)); -> War teil meiner ersten Lösung
             // was passiert hier?
@@ -101,18 +123,28 @@ public class Broker {
                 String requestId = ((NameResolutionRequest) msg.getPayload()).getRequestId();
                 InetSocketAddress tankAddress = (InetSocketAddress) clientList.getClient(clientList.indexOf(tankId));
                 endpoint.send(msg.getSender(), new NameResolutionResponse(tankAddress, requestId, msg.getSender()));
-                // TODO: Warum brauche ich hier noch die Senderadresse?
             }
         }
     }
 
     public void register(Message msg) {
         InetSocketAddress sender = msg.getSender();
-        String id = "tank"+(clientList.size());
-        clientList.add(id, sender);
-        System.out.println("Added id:"+ id +" to the list");
+        String id = "";
+        // Frage: Wie stelle ich das problem dar, dass eine Lease nicht erneuert wird? -> Idee, wenn Tank ID XY -> dann keine neue Lease anfragen.
+        int indexOfClient = clientList.indexOf(sender);
+        if (indexOfClient == -1 ){
+            // nicht bekannt
+            id = "tank"+(clientList.size());
+            clientList.add(id, sender, System.currentTimeMillis());
+            System.out.println("Added new Client with the id:"+ id +" to the list");
+        }else{
+            // Klient bereits bekannt
+            id  = clientList.getId(indexOfClient);
+            clientList.setRegistrationTime(indexOfClient, System.currentTimeMillis());
+            System.out.println("Updated regTime for Client");
+        }
 
-        RegisterResponse response = new RegisterResponse(id);
+        RegisterResponse response = new RegisterResponse(id,leaseDuration);
         if(clientList.size() == 1){
             endpoint.send(sender,new Token());
         }

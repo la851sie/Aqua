@@ -9,13 +9,16 @@ import java.util.List;
  */
 
 public class ClientCollection<T> {
+	// Frage: In Ordnung, dass hier public gemacht zu haben?
 	private class Client {
 		final String id;
 		final T client;
+		private long registrationTime;
 
-		Client(String id, T client) {
+		Client(String id, T client, long registrationTime) {
 			this.id = id;
 			this.client = client;
+			this.registrationTime = registrationTime;
 		}
 	}
 
@@ -25,8 +28,8 @@ public class ClientCollection<T> {
 		clients = new ArrayList<Client>();
 	}
 
-	public ClientCollection<T> add(String id, T client) {
-		clients.add(new Client(id, client));
+	public ClientCollection<T> add(String id, T client, long registrationTime) {
+		clients.add(new Client(id, client,registrationTime));
 		return this;
 	}
 
@@ -64,5 +67,19 @@ public class ClientCollection<T> {
 	public T getRightNeighorOf(int index) {
 		return index < clients.size() - 1 ? clients.get(index + 1).client : clients.get(0).client;
 	}
+
+	public long getRegistrationTime(int index) {
+		return clients.get(index).registrationTime;
+	}
+
+	public String getId(int index) {
+		return clients.get(index).id;
+	}
+
+	public void setRegistrationTime(int index, long newRegistrationTime) {
+		clients.get(index).registrationTime = newRegistrationTime;
+	}
+
+
 
 }
